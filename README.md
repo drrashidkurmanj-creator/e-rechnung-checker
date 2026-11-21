@@ -1,6 +1,6 @@
 # E-Rechnung Checker
 
-A small Python tool that reads German **e-invoices** (XML in the formats used by *XRechnung* and *ZUGFeRD*), checks them for errors and duplicates, and creates an **Excel overview** with a VAT summary.
+A small Python tool that reads German **e-invoices** (XML in the formats used by *XRechnung* and *ZUGFeRD*, as plain XML files or embedded in a PDF), checks them for errors and duplicates, and creates an **Excel overview** with a VAT summary.
 
 ## Why
 
@@ -8,7 +8,7 @@ German businesses must be able to receive e-invoices (structured XML instead of 
 
 ## What it does
 
-- Reads all e-invoice XML files in a folder
+- Reads all e-invoice files in a folder: **XML files and PDF files with an embedded XML**
 - Extracts invoice number, date, seller, buyer, net, VAT, gross and due date
 - Checks each invoice:
   - Net + VAT = gross
@@ -19,6 +19,7 @@ German businesses must be able to receive e-invoices (structured XML instead of 
   - one row per invoice (problem rows in red, days until the due date)
   - totals for all invoices and for the invoices without problems
   - a VAT summary per tax rate
+- Has automated tests (pytest)
 
 ## Quick start
 
@@ -42,7 +43,7 @@ German businesses must be able to receive e-invoices (structured XML instead of 
 
 4. Open the result: `Eingangsrechnungen.xlsx`
 
-To use your own files, put the XML files in the folder `eingang`.
+To use your own files, put the XML or PDF files in the folder `eingang`.
 
 ## Tests
 
@@ -55,28 +56,30 @@ pytest test_erechnung.py -v
 
 | File | Purpose |
 |---|---|
-| `erechnung_lib.py` | reading an invoice and checking it (tested) |
+| `erechnung_lib.py` | reading an invoice (XML or PDF) and checking it (tested) |
 | `erechnung_batch.py` | reads a folder and writes the Excel overview |
 | `erechnung_make_samples.py` | creates made-up sample invoices |
-| `erechnung_sample.py` | creates one example e-invoice |
+| `erechnung_sample.py` | creates one example e-invoice XML |
+| `erechnung_make_pdf_sample.py` | creates a test PDF with an XML inside (for testing only) |
 | `test_erechnung.py` | automated tests |
 | `Eingangsrechnungen.xlsx` | example output |
 
 ## Limits (please read)
 
-- Currently supports XML in the *Cross Industry Invoice* syntax (used by ZUGFeRD / Factur-X and XRechnung-CII). The *UBL* syntax is not supported yet.
-- ZUGFeRD **PDF** files are not read directly yet (the XML inside the PDF must be extracted first). This is planned.
+- Supports XML in the *Cross Industry Invoice* syntax (used by ZUGFeRD / Factur-X and XRechnung-CII). The *UBL* syntax is not supported yet.
+- For PDF files, the tool reads the first XML attachment in the PDF. It does **not** check whether the PDF itself is valid PDF/A-3.
+- The test PDF created by `erechnung_make_pdf_sample.py` is **not** a legally valid ZUGFeRD invoice. It only tests the reading.
 - This tool checks arithmetic and basic fields. It is **not** a legal validator and does not replace the official validation tools.
 - All sample data is **made up**. This is a demo and not tax advice.
 
 ## Tech
 
-Python, lxml, drafthorse (to create sample files), openpyxl, pytest
+Python, lxml, pypdf, openpyxl, drafthorse and fpdf2 (to create sample files), pytest
 
 ---
 
 ## Auf Deutsch
 
-Ein kleines Python-Programm, das **E-Rechnungen** (XML im Format von XRechnung bzw. ZUGFeRD) aus einem Ordner liest, auf Fehler und doppelte Rechnungsnummern prüft und eine **Excel-Übersicht** mit MwSt-Zusammenfassung erstellt. Geprüft werden unter anderem: Netto + MwSt = Brutto, Summen der Steuerzeilen, Pflichtangaben und doppelte Rechnungsnummern.
+Ein kleines Python-Programm, das **E-Rechnungen** (XML im Format von XRechnung bzw. ZUGFeRD, als XML-Datei oder eingebettet in einem PDF) aus einem Ordner liest, auf Fehler und doppelte Rechnungsnummern prüft und eine **Excel-Übersicht** mit MwSt-Zusammenfassung erstellt. Geprüft werden unter anderem: Netto + MwSt = Brutto, Summen der Steuerzeilen, Pflichtangaben und doppelte Rechnungsnummern. Mit automatisierten Tests.
 
-**Wichtig:** Das Programm ist ein Demo-Werkzeug. Es ersetzt weder die offizielle Validierung noch eine steuerliche Beratung. Alle Beispieldaten sind frei erfunden. Aktuell wird die XML-Syntax *Cross Industry Invoice* unterstützt, die UBL-Syntax noch nicht. ZUGFeRD-PDFs werden noch nicht direkt gelesen.
+**Wichtig:** Das Programm ist ein Demo-Werkzeug. Es ersetzt weder die offizielle Validierung noch eine steuerliche Beratung. Alle Beispieldaten sind frei erfunden. Aktuell wird die XML-Syntax *Cross Industry Invoice* unterstützt, die UBL-Syntax noch nicht. Die Gültigkeit des PDF (PDF/A-3) wird nicht geprüft.
