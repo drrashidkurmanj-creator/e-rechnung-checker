@@ -3,8 +3,43 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from pypdf import PdfWriter
 
 from erechnung_lib import check_invoice, read_invoice
+
+# a tiny made-up e-invoice (CII syntax), only for the tests
+SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice
+  xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+  xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocument>
+    <ram:ID>RE-TEST-1</ram:ID>
+    <ram:IssueDateTime><udt:DateTimeString format="102">20261001</udt:DateTimeString></ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:SellerTradeParty><ram:Name>Muster GmbH</ram:Name></ram:SellerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>Kunde GmbH</ram:Name></ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>19.00</ram:CalculatedAmount>
+        <ram:BasisAmount>100.00</ram:BasisAmount>
+        <ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:SpecifiedTradePaymentTerms>
+        <ram:DueDateDateTime><udt:DateTimeString format="102">20261015</udt:DateTimeString></ram:DueDateDateTime>
+      </ram:SpecifiedTradePaymentTerms>
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:TaxBasisTotalAmount>100.00</ram:TaxBasisTotalAmount>
+        <ram:TaxTotalAmount currencyID="EUR">19.00</ram:TaxTotalAmount>
+        <ram:GrandTotalAmount>119.00</ram:GrandTotalAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </ram:ApplicableHeaderTradeSettlement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>
+"""
 
 
 def good_invoice():
@@ -86,3 +121,31 @@ def test_read_sample_invoice():
     assert data["seller"] == "Test Reinigung GmbH"
     assert data["gross"] == Decimal("180.30")
     assert data["net"] + data["vat"] == data["gross"]
+
+
+def test_read_invoice_from_pdf(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.add_attachment(filename="factur-x.xml", data=SAMPLE_XML.encode("utf-8"))
+    writer.write(pdf_file)
+
+    data = read_invoice(pdf_file)
+
+    assert data["number"] == "RE-TEST-1"
+    assert data["seller"] == "Muster GmbH"
+    assert data["date"] == date(2026, 10, 1)
+    assert data["gross"] == Decimal("119.00")
+    assert check_invoice(data, {}) == []
+
+
+def test_pdf_without_xml_is_reported(tmp_path):
+    pdf_file = tmp_path / "leer.pdf"
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.write(pdf_file)
+
+    with pytest.raises(ValueError):
+        read_invoice(pdf_file)

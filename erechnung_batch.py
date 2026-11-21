@@ -13,7 +13,9 @@ folder = Path("eingang")
 
 invoices = []
 
-for file in sorted(folder.glob("*.xml")):
+files = sorted(list(folder.glob("*.xml")) + list(folder.glob("*.pdf")))
+
+for file in files:
     data = read_invoice(file)
     data["file"] = file.name
     invoices.append(data)

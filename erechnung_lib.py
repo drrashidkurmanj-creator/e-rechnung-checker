@@ -1,6 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
+
 from lxml import etree
+from pypdf import PdfReader
 
 
 def get(root, *names):
@@ -25,8 +28,19 @@ def to_date(text):
     return datetime.strptime(text[:8], "%Y%m%d").date()
 
 
-def read_invoice(file_name):
-    root = etree.parse(str(file_name)).getroot()
+def extract_xml_from_pdf(pdf_file):
+    # returns the bytes of the first embedded .xml file, or None
+    reader = PdfReader(str(pdf_file))
+
+    for name, content_list in reader.attachments.items():
+        if name.lower().endswith(".xml") and content_list:
+            return content_list[0]
+
+    return None
+
+
+def parse_invoice(xml_bytes):
+    root = etree.fromstring(xml_bytes)
 
     vat_lines = []
     path = (
@@ -57,6 +71,21 @@ def read_invoice(file_name):
         "vat_lines": vat_lines,
     }
 
+
+def read_invoice(file_name):
+    path = Path(file_name)
+
+    if path.suffix.lower() == ".pdf":
+        xml_bytes = extract_xml_from_pdf(path)
+
+        if xml_bytes is None:
+            raise ValueError("Keine XML-Datei im PDF gefunden: " + path.name)
+    else:
+        xml_bytes = path.read_bytes()
+
+    return parse_invoice(xml_bytes)
+
+
 def check_invoice(data, counts):
     problems = []
 
@@ -82,7 +111,7 @@ def check_invoice(data, counts):
 
 
 if __name__ == "__main__":
-    data = read_invoice("eingang/RE-2026-101.xml")
+    data = read_invoice("beispiel_zugferd.pdf")
 
     for key in data:
         print(key, ":", data[key])
